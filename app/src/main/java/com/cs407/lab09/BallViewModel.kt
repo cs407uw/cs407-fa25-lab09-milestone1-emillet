@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.math.abs
 
 class BallViewModel : ViewModel() {
 
@@ -18,54 +19,64 @@ class BallViewModel : ViewModel() {
     private val _ballPosition = MutableStateFlow(Offset.Zero)
     val ballPosition: StateFlow<Offset> = _ballPosition.asStateFlow()
 
-    /**
-     * Called by the UI when the game field's size is known.
-     */
     fun initBall(fieldWidth: Float, fieldHeight: Float, ballSizePx: Float) {
         if (ball == null) {
-            // TODO: Initialize the ball instance
-            // ball = Ball(...)
-
-            // TODO: Update the StateFlow with the initial position
-            // _ballPosition.value = Offset(ball!!.posX, ball!!.posY)
+            ball = Ball(fieldWidth, fieldHeight, ballSizePx)
+            ball?.let { b ->
+                _ballPosition.value = Offset(b.posX, b.posY)
+            }
         }
     }
 
-    /**
-     * Called by the SensorEventListener in the UI.
-     */
     fun onSensorDataChanged(event: SensorEvent) {
-        // Ensure ball is initialized
         val currentBall = ball ?: return
 
         if (event.sensor.type == Sensor.TYPE_GRAVITY) {
             if (lastTimestamp != 0L) {
-                // TODO: Calculate the time difference (dT) in seconds
-                // Hint: event.timestamp is in nanoseconds
-                // val NS2S = 1.0f / 1000000000.0f
-                // val dT = ...
+                val NS2S = 1.0f / 1_000_000_000.0f
+                val dT = (event.timestamp - lastTimestamp) * NS2S
 
-                // TODO: Update the ball's position and velocity
-                // Hint: The sensor's x and y-axis are inverted
-                // currentBall.updatePositionAndVelocity(xAcc = ..., yAcc = ..., dT = ...)
+                // --- TUNING CONSTANTS ---
+                val ACC_SENSITIVITY = 500f // Increased slightly for better speed
+                val SENSOR_THRESHOLD = 0.2f
 
-                // TODO: Update the StateFlow to notify the UI
-                // _ballPosition.update { Offset(currentBall.posX, currentBall.posY) }
+                // X AXIS:
+                // Screen X is Right(+). Sensor X (Tilt Left) is Positive.
+                // We need to invert Sensor X so tilting left moves left (-).
+                var rawX = -event.values[0]
+
+                // Y AXIS:
+                // Screen Y is Down(+). Sensor Y (Tilt Bottom-Down) is Positive.
+                // We keep this POSITIVE so tilting the bottom down increases Y.
+                // (This fixes the "Top Left" vs "Bottom Left" issue)
+                var rawY = event.values[1]
+
+                // Apply Threshold to stop "drift" when flat
+                if (abs(rawX) < SENSOR_THRESHOLD) rawX = 0f
+                if (abs(rawY) < SENSOR_THRESHOLD) rawY = 0f
+
+                // Scale Values
+                val xAcc = rawX * ACC_SENSITIVITY
+                val yAcc = rawY * ACC_SENSITIVITY
+
+                currentBall.updatePositionAndVelocity(xAcc, yAcc, dT)
+
+                _ballPosition.update { Offset(currentBall.posX, currentBall.posY) }
             }
-
-            // TODO: Update the lastTimestamp
-            // lastTimestamp = ...
+            lastTimestamp = event.timestamp
         }
     }
 
     fun reset() {
-        // TODO: Reset the ball's state
-        // ball?.reset()
+        // 1. Reset the physics object
+        ball?.reset()
 
-        // TODO: Update the StateFlow with the reset position
-        // ball?.let { ... }
+        // 2. Force the UI to Center immediately
+        ball?.let { b ->
+            _ballPosition.value = Offset(b.posX, b.posY)
+        }
 
-        // TODO: Reset the lastTimestamp
-        // lastTimestamp = 0L
+        // 3. Reset time so we don't calculate a huge jump in the next frame
+        lastTimestamp = 0L
     }
 }
