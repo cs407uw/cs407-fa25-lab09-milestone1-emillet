@@ -39,7 +39,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cs407.lab09.ui.theme.Lab09Theme
 import kotlin.math.roundToInt
 
-// Main Activity
 class MainActivity : ComponentActivity() {
 
     private val viewModel: BallViewModel by viewModels()
@@ -63,52 +62,39 @@ class MainActivity : ComponentActivity() {
 fun GameScreen(viewModel: BallViewModel) {
     val context = LocalContext.current
 
-    // Initialize the sensorManager
     val sensorManager = remember {
         context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     }
 
-    // Get the gravitySensor
     val gravitySensor = remember {
         sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
     }
 
-    // This effect runs when the composable enters the screen
-    // and cleans up when it leaves
     DisposableEffect(sensorManager, gravitySensor) {
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
-                // Pass the sensor event to the ViewModel
                 event?.let {
                     viewModel.onSensorDataChanged(it)
                 }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-                // Do nothing
             }
         }
 
-        // Register the sensor listener
-        // SENSOR_DELAY_GAME is recommended for smoother animations
         if (gravitySensor != null) {
             sensorManager.registerListener(listener, gravitySensor, SensorManager.SENSOR_DELAY_GAME)
         }
 
-        // onDispose is called when the composable leaves the screen
         onDispose {
-            // Unregister the sensor listener to save battery
             if (gravitySensor != null) {
                 sensorManager.unregisterListener(listener)
             }
         }
     }
 
-    // UI layout
     Column(modifier = Modifier.fillMaxSize()) {
-        // 1. The Reset Button
         Button(
             onClick = {
-                // Call the reset function on the ViewModel
                 viewModel.reset()
             },
             modifier = Modifier
@@ -118,12 +104,9 @@ fun GameScreen(viewModel: BallViewModel) {
             Text(text = "Reset")
         }
 
-        // 2. The Game Field
         val ballSize = 50.dp
         val ballSizePx = with(LocalDensity.current) { ballSize.toPx() }
 
-        // Collect the ball's position from the ViewModel
-        // collectAsStateWithLifecycle is lifecycle-aware and safer than collectAsState
         val ballPosition by viewModel.ballPosition.collectAsStateWithLifecycle()
 
         Box(
@@ -135,19 +118,15 @@ fun GameScreen(viewModel: BallViewModel) {
                     contentScale = ContentScale.FillBounds
                 )
                 .onSizeChanged { size ->
-                    // Tell the ViewModel the size of the field so it can set boundaries
                     viewModel.initBall(size.width.toFloat(), size.height.toFloat(), ballSizePx)
                 }
         ) {
-            // 3. The Ball
             Image(
                 painter = painterResource(id = R.drawable.soccer),
                 contentDescription = "Soccer Ball",
                 modifier = Modifier
                     .size(ballSize)
                     .offset {
-                        // Use the collected ballPosition to set the offset
-                        // Convert Float position to IntOffset for the UI
                         IntOffset(
                             x = ballPosition.x.roundToInt(),
                             y = ballPosition.y.roundToInt()

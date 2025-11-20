@@ -25,7 +25,6 @@ class Ball(
     private var isFirstUpdate = true
 
     init {
-        // Call reset()
         reset()
     }
 
@@ -41,34 +40,25 @@ class Ball(
             return
         }
 
-        // EQUATION 2: Calculate distance traveled
         val distX = velocityX * dT + (dT * dT / 6f) * (3 * accX + xAcc)
         val distY = velocityY * dT + (dT * dT / 6f) * (3 * accY + yAcc)
 
-        // Update Position
         posX += distX
         posY += distY
 
-        // EQUATION 1: Calculate new velocity
         velocityX += 0.5f * (accX + xAcc) * dT
         velocityY += 0.5f * (accY + yAcc) * dT
 
-        // --- FRICTION & DAMPING LOGIC ---
-        // 1. Apply friction to slow the ball down over time (simulating rolling resistance)
         val friction = 0.95f
         velocityX *= friction
         velocityY *= friction
 
-        // 2. Stop the ball completely if velocity is negligible (prevents "micro-sliding")
         if (abs(velocityX) < 1f) velocityX = 0f
         if (abs(velocityY) < 1f) velocityY = 0f
-        // -------------------------------
 
-        // Update acceleration for next frame
         accX = xAcc
         accY = yAcc
 
-        // Ensure boundaries
         checkBoundaries()
     }
 
@@ -78,26 +68,22 @@ class Ball(
      * boundary should be set to 0.
      */
     fun checkBoundaries() {
-        // Left wall
         if (posX < 0f) {
             posX = 0f
             velocityX = 0f
             accX = 0f
         }
-        // Right wall
         else if (posX + ballSize > backgroundWidth) {
             posX = backgroundWidth - ballSize
             velocityX = 0f
             accX = 0f
         }
 
-        // Top wall
         if (posY < 0f) {
             posY = 0f
             velocityY = 0f
             accY = 0f
         }
-        // Bottom wall
         else if (posY + ballSize > backgroundHeight) {
             posY = backgroundHeight - ballSize
             velocityY = 0f
